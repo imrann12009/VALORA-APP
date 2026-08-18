@@ -1,6 +1,7 @@
 import { creators, videos, threads, chatMessages, notifications, metrics } from '../data/mockData';
 import { hasSupabaseConfig, supabase } from '../lib/supabase';
-import { backendPostToVideo, listNotifications, listPublicProfiles, listSocialPosts } from './social';
+import { backendPostToVideo, listComments, listNotifications, listPublicProfiles, listSocialPosts } from './social';
+import { listConversationMessages, listConversationPreviews } from './socialUi';
 import './socialSync';
 import type { ChatMessage, Creator, DashboardMetric, MessageThread, NotificationItem, VideoPost } from '../types';
 
@@ -22,8 +23,18 @@ export const contentService = {
     if (!backendPosts.length) return legacyVideos;
     return [...backendPosts.map((post) => backendPostToVideo(post)), ...legacyVideos];
   },
-  threads: () => fromSupabase<MessageThread>('message_threads', threads),
-  chatMessages: () => fromSupabase<ChatMessage>('chat_messages', chatMessages),
+  threads: async (): Promise<MessageThread[]> => {
+    const real = await listConversationPreviews();
+    if (!real.length) return fromSupabase<MessageThread>('message_threads', threads);
+    return real.map((x) => ({ id: x.id, creatorId: x.userId, lastMessage: x.lastMessage, time: x.lastMessageAt ? new Date(x.lastMessageAt).toLocaleString() : '', unread: x.unread, online: false }));
+  },
+  chatMessages: async (): Promise<ChatMessage[]> => {
+    const base = await fromSupabase<ChatMessage>('chat_messages', chatMessages);
+    const realThreads = await listConversationPreviews();
+    if (!realThreads.length) return base;
+    const groups = await Promise.all(realThreads.map((thread) => listConversationMessages(thread.id)));
+    return [...groups.flat(), ...base];
+  },
   notifications: async (): Promise<NotificationItem[]> => {
     const real = await listNotifications();
     return real.length ? real : fromSupabase<NotificationItem>('notifications', notifications);
