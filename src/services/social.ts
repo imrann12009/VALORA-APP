@@ -34,22 +34,14 @@ export type BackendPost = {
 
 export async function listSocialPosts(limit = 30): Promise<BackendPost[]> {
   if (!hasSupabaseConfig || !supabase) return [];
-  const { data, error } = await supabase
-    .from('posts')
-    .select('id,user_id,title,caption,tags,image_url,media_type,sound,privacy,created_at')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  const { data, error } = await supabase.from('posts').select('id,user_id,title,caption,tags,image_url,media_type,sound,privacy,created_at').order('created_at', { ascending: false }).limit(limit);
   if (error || !data) return [];
   return data as BackendPost[];
 }
 
 export async function listPublicProfiles(): Promise<Creator[]> {
   if (!hasSupabaseConfig || !supabase) return [];
-  const { data, error } = await supabase
-    .from('public_profiles')
-    .select('id,display_name,username,avatar_url,bio')
-    .order('created_at', { ascending: false })
-    .limit(100);
+  const { data, error } = await supabase.from('public_profiles').select('id,display_name,username,avatar_url,bio').order('created_at', { ascending: false }).limit(100);
   if (error || !data) return [];
   return data.map((profile) => ({
     id: String(profile.id),
@@ -62,7 +54,7 @@ export async function listPublicProfiles(): Promise<Creator[]> {
   }));
 }
 
-export function backendPostToVideo(post: BackendPost, creator?: Creator): VideoPost {
+export function backendPostToVideo(post: BackendPost): VideoPost {
   return {
     id: post.id,
     creatorId: post.user_id,
@@ -87,42 +79,39 @@ export async function createPost(draft: UploadDraft): Promise<SocialResult<Backe
   if (!hasSupabaseConfig || !supabase) return unavailable();
   const profile = await ownProfile();
   if (!profile) return { ok: false, error: 'Please sign in before creating a post.' };
-
-  const { data, error } = await supabase
-    .from('posts')
-    .insert({
-      user_id: profile.id,
-      title: draft.title.trim(),
-      caption: draft.caption.trim(),
-      tags: draft.tags,
-      image_url: draft.imageUrl || null,
-      media_type: draft.type ?? 'photo',
-      sound: draft.sound.trim() || 'Original sound',
-      privacy: draft.privacy
-    })
-    .select('id,user_id,title,caption,tags,image_url,media_type,sound,privacy,created_at')
-    .single();
-
+  const { data, error } = await supabase.from('posts').insert({
+    user_id: profile.id,
+    title: draft.title.trim(),
+    caption: draft.caption.trim(),
+    tags: draft.tags,
+    image_url: draft.imageUrl || null,
+    media_type: draft.type ?? 'photo',
+    sound: draft.sound.trim() || 'Original sound',
+    privacy: draft.privacy
+  }).select('id,user_id,title,caption,tags,image_url,media_type,sound,privacy,created_at').single();
   if (error || !data) return { ok: false, error: errorMessage(error) };
   return { ok: true, data: data as BackendPost };
+}
+
+export async function createStory(mediaUrl: string, caption = ''): Promise<SocialResult<string>> {
+  if (!hasSupabaseConfig || !supabase) return unavailable();
+  const profile = await ownProfile();
+  if (!profile) return { ok: false, error: 'Please sign in before creating a story.' };
+  const { data, error } = await supabase.from('stories').insert({ user_id: profile.id, media_url: mediaUrl, caption }).select('id').single();
+  if (error || !data) return { ok: false, error: errorMessage(error) };
+  return { ok: true, data: data.id };
 }
 
 export async function toggleLike(postId: string, liked: boolean): Promise<SocialResult<null>> {
   if (!hasSupabaseConfig || !supabase) return unavailable();
   const profile = await ownProfile();
   if (!profile) return { ok: false, error: 'Please sign in again.' };
-
-  const query = liked
-    ? supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', profile.id)
-    : supabase.from('post_likes').insert({ post_id: postId, user_id: profile.id });
+  const query = liked ? supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', profile.id) : supabase.from('post_likes').insert({ post_id: postId, user_id: profile.id });
   const { error } = await query;
   if (error) return { ok: false, error: errorMessage(error) };
-
   if (!liked) {
     const { data: post } = await supabase.from('posts').select('user_id').eq('id', postId).single();
-    if (post && post.user_id !== profile.id) {
-      await supabase.from('notifications_v2').insert({ recipient_id: post.user_id, actor_id: profile.id, kind: 'like', post_id: postId });
-    }
+    if (post && post.user_id !== profile.id) await supabase.from('notifications_v2').insert({ recipient_id: post.user_id, actor_id: profile.id, kind: 'like', post_id: postId });
   }
   return { ok: true, data: null };
 }
@@ -133,14 +122,10 @@ export async function addComment(postId: string, content: string): Promise<Socia
   if (!profile) return { ok: false, error: 'Please sign in again.' };
   const clean = content.trim();
   if (!clean) return { ok: false, error: 'Comment cannot be empty.' };
-
   const { data, error } = await supabase.from('comments').insert({ post_id: postId, user_id: profile.id, content: clean }).select('id,content,created_at').single();
   if (error || !data) return { ok: false, error: errorMessage(error) };
-
   const { data: post } = await supabase.from('posts').select('user_id').eq('id', postId).single();
-  if (post && post.user_id !== profile.id) {
-    await supabase.from('notifications_v2').insert({ recipient_id: post.user_id, actor_id: profile.id, kind: 'comment', post_id: postId });
-  }
+  if (post && post.user_id !== profile.id) await supabase.from('notifications_v2').insert({ recipient_id: post.user_id, actor_id: profile.id, kind: 'comment', post_id: postId });
   return { ok: true, data };
 }
 
@@ -156,10 +141,7 @@ export async function toggleFollow(targetProfileId: string, following: boolean):
   const profile = await ownProfile();
   if (!profile) return { ok: false, error: 'Please sign in again.' };
   if (profile.id === targetProfileId) return { ok: false, error: 'You cannot follow yourself.' };
-
-  const query = following
-    ? supabase.from('follows').delete().eq('follower_id', profile.id).eq('following_id', targetProfileId)
-    : supabase.from('follows').insert({ follower_id: profile.id, following_id: targetProfileId });
+  const query = following ? supabase.from('follows').delete().eq('follower_id', profile.id).eq('following_id', targetProfileId) : supabase.from('follows').insert({ follower_id: profile.id, following_id: targetProfileId });
   const { error } = await query;
   if (error) return { ok: false, error: errorMessage(error) };
   if (!following) await supabase.from('notifications_v2').insert({ recipient_id: targetProfileId, actor_id: profile.id, kind: 'follow' });
