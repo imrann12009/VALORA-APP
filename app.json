@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Valora",
+    "slug": "valora-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "valora",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.valora.app"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "supabaseUrl": "$EXPO_PUBLIC_SUPABASE_URL",
+      "supabaseAnonKey": "$EXPO_PUBLIC_SUPABASE_ANON_KEY",
+      "eas": {
+        "projectId": "07d4e619-8c9f-49ba-ac49-5c3f13fd871a"
+      }
+    },
+    "owner": "imran1290",
+    "plugins": [
+      "expo-web-browser"
+    ]
+  }
+}
