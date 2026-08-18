@@ -56,7 +56,7 @@ export function installSocialPersistence() {
         sound: upload.sound,
         privacy: upload.privacy ?? 'public',
         type: upload.type ?? 'photo'
-      } as const;
+      };
       if (draft.type === 'story') {
         void createStory(draft.imageUrl, draft.caption);
       } else {
