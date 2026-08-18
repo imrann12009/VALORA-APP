@@ -1,6 +1,7 @@
 import { creators, videos, threads, chatMessages, notifications, metrics } from '../data/mockData';
 import { hasSupabaseConfig, supabase } from '../lib/supabase';
 import { backendPostToVideo, listPublicProfiles, listSocialPosts } from './social';
+import './socialSync';
 import type {
   ChatMessage,
   Creator,
