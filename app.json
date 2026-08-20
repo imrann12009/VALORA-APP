@@ -3,6 +3,7 @@
     "name": "Valora",
     "slug": "valora-app",
     "version": "1.0.0",
+    "icon": "./assets/hlogo.png",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "scheme": "valora",
