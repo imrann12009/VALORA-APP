@@ -161,15 +161,12 @@ export async function listNotifications(): Promise<NotificationItem[]> {
   if (!profile) return [];
   const { data, error } = await supabase.from('notifications_v2').select('id,kind,created_at,actor_id,read_at').eq('recipient_id', profile.id).order('created_at', { ascending: false }).limit(50);
   if (error || !data) return [];
-  return data.map((item) => {
-    const notification: NotificationItem = {
-      id: item.id,
-      kind: item.kind === 'comment' ? 'like' : item.kind,
-      title: item.kind === 'follow' ? 'Someone followed you' : item.kind === 'comment' ? 'Someone commented on your post' : item.kind === 'like' ? 'Someone liked your post' : 'Someone interacted with your post',
-      time: new Date(item.created_at).toLocaleString()
-    };
-    return notification;
-  });
+  return data.map((item) => ({
+    id: item.id,
+    kind: item.kind === 'comment' ? 'like' : item.kind,
+    title: item.kind === 'follow' ? 'Someone followed you' : item.kind === 'comment' ? 'Someone commented on your post' : item.kind === 'like' ? 'Someone liked your post' : 'Someone interacted with your post',
+    time: new Date(item.created_at).toLocaleString()
+  }));
 }
 
 export async function markNotificationsRead(): Promise<SocialResult<null>> {
