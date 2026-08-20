@@ -93,7 +93,7 @@ export function subscribeToMessages(conversationId: string, onMessage: (message:
   if (!hasSupabaseConfig || !supabase) return () => undefined;
   let active = true;
   const channel = supabase.channel(`messages:${conversationId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, async (payload) => {
-    if (!active) return;
+    if (!active || !supabase) return;
     const m = payload.new as { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
     const { data: auth } = await supabase.auth.getUser();
     const { data: me } = auth.user ? await supabase.from('profiles').select('id').eq('auth_user_id', auth.user.id).single() : { data: null };
