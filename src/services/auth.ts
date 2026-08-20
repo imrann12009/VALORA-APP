@@ -249,7 +249,7 @@ export async function signInWithOAuthProvider(provider: 'google' | 'facebook'): 
         const hash = callbackUrl.hash.startsWith('#') ? callbackUrl.hash.slice(1) : callbackUrl.hash;
         const params = new URLSearchParams(hash);
         if (params.has('code')) {
-          code = params.get('code') ?? undefined;
+          code = params.get('code');
         } else if (params.has('access_token')) {
           // Never accept implicit access_token for PKCE. Ask for server/provider config change.
           return {

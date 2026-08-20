@@ -55,9 +55,9 @@ export async function markStoryViewed(storyId: string): Promise<Result<null>> {
 export type ConversationPreview = { id: string; userId: string; displayName: string; username: string; avatarUrl: string; lastMessage: string; lastMessageAt: string | null; unread: number };
 export async function listConversationPreviews(): Promise<ConversationPreview[]> {
   if (!hasSupabaseConfig || !supabase) return [];
-  const { data, error } = await supabase.from('conversation_previews').select('id,user_id,display_name,username,avatar_url,last_message,last_message_at,unread').order('last_message_at', { ascending: false, nullsFirst: false });
+  const { data, error } = await supabase.from('conversation_previews').select('id,user_id,display_name,username,avatar_url,last_message,last_message_at,unread').order('last_message_at', { ascending: false }).limit(100);
   if (error || !data) return [];
-  return data.map((x) => ({ id: x.id, userId: x.user_id, displayName: x.display_name, username: x.username, avatarUrl: x.avatar_url ?? '', lastMessage: x.last_message ?? '', lastMessageAt: x.last_message_at, unread: x.unread }));
+  return data.map((x) => ({ id: x.id, userId: x.user_id, displayName: x.display_name, username: x.username, avatarUrl: x.avatar_url ?? '', lastMessage: x.last_message ?? '', lastMessageAt: x.last_message_at }));
 }
 
 export async function getOrCreateConversation(targetProfileId: string): Promise<Result<string>> {
@@ -84,7 +84,7 @@ export async function listConversationMessages(conversationId: string): Promise<
   if (!auth.user) return [];
   const { data: me } = await supabase.from('profiles').select('id').eq('auth_user_id', auth.user.id).single();
   if (!me) return [];
-  const { data, error } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at').eq('conversation_id', conversationId).order('created_at', { ascending: true }).limit(200);
+  const { data, error } = await supabase.from('messages').select('id,conversation_id,sender_id,body,created_at').eq('conversation_id', conversationId).order('created_at', { ascending: true }).limit(100);
   if (error || !data) return [];
   return data.map((m) => ({ id: m.id, threadId: m.conversation_id, mine: m.sender_id === me.id, kind: 'text', body: m.body, time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }));
 }
@@ -99,14 +99,14 @@ export function subscribeToMessages(conversationId: string, onMessage: (message:
     const { data: me } = auth.user ? await supabase.from('profiles').select('id').eq('auth_user_id', auth.user.id).single() : { data: null };
     onMessage({ id: m.id, threadId: m.conversation_id, mine: m.sender_id === me?.id, kind: 'text', body: m.body, time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
   }).subscribe();
-  return () => { active = false; void supabase.removeChannel(channel); };
+  return () => { active = false; if (supabase) void supabase.removeChannel(channel); };
 }
 
 export function subscribeToNotifications(onChange: () => void) {
   if (!hasSupabaseConfig || !supabase) return () => undefined;
   let active = true;
   const channel = supabase.channel('notifications:current').on('postgres_changes', { event: '*', schema: 'public', table: 'notifications_v2' }, () => { if (active) onChange(); }).subscribe();
-  return () => { active = false; void supabase.removeChannel(channel); };
+  return () => { active = false; if (supabase) void supabase.removeChannel(channel); };
 }
 
 export async function getNotificationUnreadCount(): Promise<number> {
