@@ -28,7 +28,8 @@
     },
     "owner": "imran1290",
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      "@sentry/react-native"
     ]
   }
 }

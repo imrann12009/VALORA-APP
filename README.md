@@ -48,3 +48,7 @@ For email/password, Google, Facebook, and phone OTP configuration, see `AUTH_SET
 - Creator analytics, monetization readiness, privacy/safety/settings, personalization
 
 The Valora logo is the glowing blue/magenta V mark on a dark squircle (`assets/hlogo.png`), used as the app icon, splash, and in-app branding.
+
+## Observability
+
+Valora uses Sentry for client crash and error reporting. Set `EXPO_PUBLIC_SENTRY_DSN` in a local environment file or EAS environment; it is intentionally absent from source control. Without a configured DSN, structured logs still appear locally and Sentry event delivery remains disabled. The Sentry project, DSN, alert routing, and billing tier must be confirmed before production monitoring is considered live.

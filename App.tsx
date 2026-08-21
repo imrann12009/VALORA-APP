@@ -15,8 +15,10 @@ import {
   View
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Sentry from '@sentry/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LogoV } from './src/components/LogoV';
+import { captureAppError, logger, setObservabilityUser } from './src/lib/observability';
 import { useValoraData } from './src/hooks/useValoraData';
 import {
   ensureProfileForUser,
@@ -61,13 +63,15 @@ const uploadCovers = [
 ];
 const fallbackCover = uploadCovers[0] as string;
 
-export default function App() {
+function AppRoot() {
   return (
     <QueryClientProvider client={queryClient}>
       <ValoraApp />
     </QueryClientProvider>
   );
 }
+
+export default Sentry.wrap(AppRoot);
 
 function ValoraApp() {
   const data = useValoraData();
@@ -98,6 +102,7 @@ function ValoraApp() {
     async function restoreSession() {
       try {
         const session = await getCurrentSession();
+        logger.info('Session restore completed', { hasSession: Boolean(session?.user) });
         if (!alive) return;
 
         if (!session?.user) {
@@ -106,6 +111,7 @@ function ValoraApp() {
         }
 
         const profile = await ensureProfileForUser(session.user);
+        setObservabilityUser(session.user.id);
         if (!alive) return;
 
         if (!profile.ok) {
@@ -128,12 +134,17 @@ function ValoraApp() {
           },
           toast: 'Session restored'
         });
+      } catch (error) {
+        captureAppError(error, { operation: 'restore_session' });
+        if (alive) {
+          useAppStore.setState({ signedIn: false, screen: 'welcome', tab: 'home', overlay: null });
+        }
       } finally {
         if (alive) setAuthResolved(true);
       }
     }
 
-    restoreSession();
+    void restoreSession();
     return () => {
       alive = false;
     };
