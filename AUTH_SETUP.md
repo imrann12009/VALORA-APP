@@ -6,7 +6,7 @@ No OAuth client secret, SMS provider token, or database password belongs in fron
 
 ## Environment Variables
 
-Create `.env.local`:
+Create `.env.local` (DO NOT COMMIT) with the following public values:
 
 ```bash
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -14,6 +14,18 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 EXPO_PUBLIC_DEV_AUTH_REDIRECT_URL=http://localhost:8083
 EXPO_PUBLIC_AUTH_REDIRECT_URL=https://your-production-domain.com
 ```
+
+Notes:
+
+- The mobile app uses the native redirect `valora://auth/callback` for device OAuth returns. Ensure `app.json` contains `"scheme": "valora"` (already present) and that Android/iOS native projects include the corresponding intent filters / URL types when building native (see the iOS/bare instructions below if you eject).
+
+- Supabase Auth uses a server-side OAuth callback. Add the following Supabase callback URL to your OAuth provider configuration (Facebook/Google):
+
+```
+https://<YOUR_PROJECT_REF>.supabase.co/auth/v1/callback
+```
+
+This is different from the app's native redirect URI (`valora://auth/callback`). Both may need to be added to provider configuration depending on the provider dashboard requirements.
 
 ## Database
 
@@ -55,8 +67,12 @@ Supabase handles password hashing, session persistence, verification emails, and
 3. In Supabase Dashboard > Authentication > Providers > Facebook:
    - enable Facebook
    - add Facebook App ID
-   - add Facebook App Secret
-4. Add the same development, production, and native redirect URLs in Supabase.
+   - add Facebook App Secret (enter this only in the Supabase dashboard — do NOT add it to the mobile app or commit it)
+4. Add the same development, production, and native redirect URLs in Supabase and in the Facebook App settings if required.
+
+Notes:
+- Do NOT put the Facebook App Secret or any service-role key in the mobile client.
+- If your provider dashboard requires listing both the Supabase callback and the native redirect, add both. Supabase will perform the authorization-code PKCE exchange server-side when appropriate.
 
 ## Phone OTP
 

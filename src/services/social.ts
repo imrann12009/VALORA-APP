@@ -165,8 +165,7 @@ export async function listNotifications(): Promise<NotificationItem[]> {
     id: item.id,
     kind: item.kind === 'comment' ? 'like' : item.kind,
     title: item.kind === 'follow' ? 'Someone followed you' : item.kind === 'comment' ? 'Someone commented on your post' : item.kind === 'like' ? 'Someone liked your post' : 'Someone interacted with your post',
-    time: new Date(item.created_at).toLocaleString(),
-    actorAvatarUrl: undefined
+    time: new Date(item.created_at).toLocaleString()
   }));
 }
 

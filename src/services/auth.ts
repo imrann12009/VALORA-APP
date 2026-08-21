@@ -32,6 +32,11 @@ function requireSupabase() {
   return null;
 }
 
+// Small helper used for provider-specific messages
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export function getRedirectUrl() {
   if (Platform.OS !== 'web') {
     return 'valora://auth/callback';
@@ -183,6 +188,31 @@ export async function signInWithOAuthProvider(provider: 'google' | 'facebook'): 
   if (missing) return { ok: false, error: missing };
 
   const redirectTo = getRedirectUrl();
+
+  // Validate redirectTo
+  if (Platform.OS === 'web') {
+    const configured =
+      process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL ??
+      process.env.EXPO_PUBLIC_DEV_AUTH_REDIRECT_URL;
+
+    if (!configured && !(typeof window !== 'undefined' && window.location?.origin)) {
+      return {
+        ok: false,
+        error:
+          'Web redirect URL is not configured. Set EXPO_PUBLIC_AUTH_REDIRECT_URL or EXPO_PUBLIC_DEV_AUTH_REDIRECT_URL in .env.local (see AUTH_SETUP.md).'
+      };
+    }
+  } else {
+    // Native: ensure we use app scheme (valora://)
+    if (!redirectTo || !redirectTo.startsWith('valora://')) {
+      return {
+        ok: false,
+        error:
+          'Native redirect URI is not configured for the app scheme (expected valora://auth/callback). Ensure app.json includes "scheme": "valora" and native intent filters / URL types are configured.'
+      };
+    }
+  }
+
   const { data, error } = await supabase!.auth.signInWithOAuth({
     provider: provider as Provider,
     options: {
@@ -193,26 +223,66 @@ export async function signInWithOAuthProvider(provider: 'google' | 'facebook'): 
 
   if (error) return { ok: false, error: authErrorMessage(error.message) };
 
+  // On web, Supabase will handle redirect back to the configured URL
   if (Platform.OS === 'web') return { ok: true, data: null };
-  if (!data.url) return { ok: false, error: `Unable to start ${provider} sign-in. Please try again.` };
+  if (!data?.url) return { ok: false, error: `Unable to start ${provider} sign-in. Please try again.` };
 
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-  if (result.type !== 'success') {
-    return { ok: false, error: 'Sign-in was cancelled before it finished.' };
+  try {
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    if (result.type !== 'success' || !result.url) {
+      // user cancelled or no callback URL
+      return { ok: false, error: `${capitalize(provider)} sign-in was cancelled before completion.` };
+    }
+
+    const callbackUrl = new URL(result.url);
+
+    // Provider errors first
+    const oauthError = callbackUrl.searchParams.get('error_description') ?? callbackUrl.searchParams.get('error');
+    if (oauthError) return { ok: false, error: authErrorMessage(oauthError) };
+
+    // Primary: code in query params
+    let code = callbackUrl.searchParams.get('code');
+
+    // Fallback: some providers surface values in the hash. Only accept 'code' from hash.
+    if (!code && callbackUrl.hash) {
+      try {
+        const hash = callbackUrl.hash.startsWith('#') ? callbackUrl.hash.slice(1) : callbackUrl.hash;
+        const params = new URLSearchParams(hash);
+        if (params.has('code')) {
+          code = params.get('code');
+        } else if (params.has('access_token')) {
+          // Never accept implicit access_token for PKCE. Ask for server/provider config change.
+          return {
+            ok: false,
+            error: `${capitalize(provider)} returned an access token in the URL fragment. Configure Supabase and the provider to return an authorization code (PKCE) so the app can securely exchange it.`
+          };
+        }
+      } catch {
+        // fallthrough to missing-code error
+      }
+    }
+
+    if (!code) {
+      return { ok: false, error: `${capitalize(provider)} sign-in did not return an authorization code.` };
+    }
+
+    const { data: sessionData, error: exchangeError } = await supabase!.auth.exchangeCodeForSession(code);
+    if (exchangeError) return { ok: false, error: authErrorMessage(exchangeError.message) };
+    if (!sessionData.session) {
+      return { ok: false, error: `${capitalize(provider)} sign-in completed but no session was returned.` };
+    }
+
+    return { ok: true, data: sessionData.session };
+  } catch {
+    return { ok: false, error: `${capitalize(provider)} sign-in failed. Please try again.` };
+  } finally {
+    // Ensure any OS-level auth session is cleaned up
+    try {
+      WebBrowser.maybeCompleteAuthSession();
+    } catch {
+      // swallow any errors - nothing we can do here
+    }
   }
-
-  const callbackUrl = new URL(result.url);
-  const oauthError = callbackUrl.searchParams.get('error_description') ?? callbackUrl.searchParams.get('error');
-  if (oauthError) return { ok: false, error: authErrorMessage(oauthError) };
-
-  const code = callbackUrl.searchParams.get('code');
-  if (!code) return { ok: false, error: 'Google sign-in did not return an authorization code.' };
-
-  const { data: sessionData, error: exchangeError } = await supabase!.auth.exchangeCodeForSession(code);
-  if (exchangeError) return { ok: false, error: authErrorMessage(exchangeError.message) };
-  if (!sessionData.session) return { ok: false, error: 'Google sign-in completed but no session was returned.' };
-
-  return { ok: true, data: sessionData.session };
 }
 
 export async function linkOAuthProvider(provider: 'google' | 'facebook'): Promise<AuthResult> {
