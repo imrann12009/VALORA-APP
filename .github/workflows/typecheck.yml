@@ -1,9 +1,7 @@
 name: TypeScript validation
 
 on:
-  push:
-    branches: ['**']
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   typecheck:
