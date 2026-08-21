@@ -11,7 +11,7 @@ export function LogoV({ size = 48, withWordmark = false }: Props) {
   return (
     <View style={styles.wrap}>
       <Image
-        source={require('../../assets/valora-v-logo.png')}
+        source={require('../../assets/hlogo.png')}
         style={[styles.mark, { width: size, height: size }]}
         resizeMode="contain"
       />

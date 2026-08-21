@@ -47,4 +47,4 @@ For email/password, Google, Facebook, and phone OTP configuration, see `AUTH_SET
 - Profile with uploads, liked videos, saved, settings, activity, dashboard
 - Creator analytics, monetization readiness, privacy/safety/settings, personalization
 
-The Valora logo uses only the standalone V mark from the provided logo direction.
+The Valora logo is the glowing blue/magenta V mark on a dark squircle (`assets/hlogo.png`), used as the app icon, splash, and in-app branding.
