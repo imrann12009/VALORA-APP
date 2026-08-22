@@ -1,7 +1,7 @@
 # Valora Rate-Limiting Primitive
 
 **Phase:** P5 — Rate-limiting/abuse core infrastructure  
-**Status:** Primitive implemented and pushed; live migration deployment and real burst verification remain required before P5 can be marked DONE.
+**Status:** PARTIAL/BLOCKED — migration is live and sequential RPC tests pass, but the required concurrent-call test has not completed with valid evidence. P5 is not DONE.
 
 ## One-time phase override
 
@@ -42,17 +42,28 @@ Before a mutating endpoint is considered protected:
 
 P5 provides the reusable primitive; applying it to signup, comments, and DMs is owned by P7, P18, and P26 respectively.
 
-## Verification still required
+## Live verification evidence
 
-The repository can statically verify the migration contract and TypeScript boundary, but it cannot prove live Supabase behavior until the migration is deployed. Before P5 DONE:
+**Project:** supplied Supabase project ref `xyxgwlthbjezslloysgd`
 
-- [ ] Apply the migration to the target Supabase project.
-- [ ] Authenticated account burst: limit 3 in 60 seconds; calls 1–3 allowed, call 4 denied with retry-after.
-- [ ] Authenticated device burst: two different device keys use separate account-scoped buckets.
-- [ ] Trusted service-role IP burst: same IP key is denied after the configured limit.
-- [ ] Anonymous/account-key substitution and client IP scope attempts are rejected.
-- [ ] Window rollover resets the counter.
-- [ ] Concurrent calls do not exceed the limit.
-- [ ] Record SQL/RPC output and timestamp as phase evidence.
+**Migration applied:** `20260822090000_rate_limits.sql` via linked Supabase CLI `db query --linked`
 
-Until these live tests pass, P5 is **PARTIAL/BLOCKED**, and no production abuse-prevention claim should be made.
+**Evidence window:** 2026-08-22 09:15–09:28 UTC
+**Sensitive credentials:** not recorded here.
+
+| Test | Result | Timestamp/evidence |
+|---|---|---|
+| Migration/table/RPC existence | PASS | 2026-08-22 09:10 UTC; `private.rate_limit_buckets` and `consume_rate_limit(text,text,integer,integer)` returned by live query |
+| Account burst, limit 3/60s | PASS | 09:16:16 UTC; calls 1–3 `allowed=true` with remaining 2/1/0; call 4 `allowed=false`, retry-after 60s |
+| Device burst and key isolation | PASS | 09:17:14 UTC; device A calls a1/a2 allowed, a3 denied; device B call b1 allowed |
+| Trusted IP burst, limit 2/60s | PASS | 09:17:19 UTC; calls 1–2 allowed with remaining 1/0; call 3 denied, retry-after 60s |
+| Client IP rejection | PASS | 09:18 UTC; authenticated caller received SQLSTATE `42501`: IP rate limits require a trusted service-role caller |
+| Window rollover, limit 1/1s | PASS | 09:21:34–09:21:36 UTC; before allowed, immediate call denied with retry-after 1s, after 2s allowed |
+| Persistent state across calls | PASS | 09:20:34/09:20:39 UTC; second account call denied with retry-after 56s; private state showed request_count=1 |
+| Concurrent calls | BLOCKED | 09:22–09:28 UTC; parallel linked CLI calls hit Supabase temporary-role authentication/circuit-breaker errors, so 10-call result set was incomplete. No concurrency pass is claimed. |
+
+### Required resume test
+
+Run the concurrency test through a stable direct Postgres connection or a supported pooled connection with valid `SUPABASE_DB_PASSWORD`/database credentials. Use 10 simultaneous calls against one authenticated account bucket with limit 3; valid evidence requires exactly 3 allowed and 7 denied, zero connection errors, and timestamped RPC output.
+
+Until the concurrency test passes with complete evidence, P5 remains **PARTIAL/BLOCKED** and must not be marked DONE. P6/P7 and later phases remain blocked by the normal phase gate.
