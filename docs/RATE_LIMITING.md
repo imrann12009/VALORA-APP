@@ -1,7 +1,7 @@
 # Valora Rate-Limiting Primitive
 
 **Phase:** P5 — Rate-limiting/abuse core infrastructure  
-**Status:** PARTIAL/BLOCKED — migration is live and sequential RPC tests pass, but the required concurrent-call test has not completed with valid evidence. P5 is not DONE.
+**Status:** DONE — live migration and all required rate-limit verification tests passed, including stable pooled-connection concurrency evidence.
 
 ## One-time phase override
 
@@ -48,8 +48,9 @@ P5 provides the reusable primitive; applying it to signup, comments, and DMs is 
 
 **Migration applied:** `20260822090000_rate_limits.sql` via linked Supabase CLI `db query --linked`
 
-**Evidence window:** 2026-08-22 09:15–09:28 UTC
-**Sensitive credentials:** not recorded here.
+**Evidence windows:** 2026-08-22 09:10–09:28 UTC and 2026-08-22 10:11:30–10:11:34 UTC
+
+**Connection evidence:** final concurrency run used a stable direct Supabase pooler connection; credentials are not recorded here.
 
 | Test | Result | Timestamp/evidence |
 |---|---|---|
@@ -60,10 +61,8 @@ P5 provides the reusable primitive; applying it to signup, comments, and DMs is 
 | Client IP rejection | PASS | 09:18 UTC; authenticated caller received SQLSTATE `42501`: IP rate limits require a trusted service-role caller |
 | Window rollover, limit 1/1s | PASS | 09:21:34–09:21:36 UTC; before allowed, immediate call denied with retry-after 1s, after 2s allowed |
 | Persistent state across calls | PASS | 09:20:34/09:20:39 UTC; second account call denied with retry-after 56s; private state showed request_count=1 |
-| Concurrent calls | BLOCKED | 09:22–09:28 UTC; parallel linked CLI calls hit Supabase temporary-role authentication/circuit-breaker errors, so 10-call result set was incomplete. No concurrency pass is claimed. |
+| Concurrent calls | PASS | 2026-08-22 10:11:30–10:11:34 UTC; 10 simultaneous pooler calls returned exactly 3 `allowed=true` and 7 `allowed=false`; all 10 subprocesses exited zero; JSON errors=0; connection errors=0. |
 
-### Required resume test
+### P5 completion status
 
-Run the concurrency test through a stable direct Postgres connection or a supported pooled connection with valid `SUPABASE_DB_PASSWORD`/database credentials. Use 10 simultaneous calls against one authenticated account bucket with limit 3; valid evidence requires exactly 3 allowed and 7 denied, zero connection errors, and timestamped RPC output.
-
-Until the concurrency test passes with complete evidence, P5 remains **PARTIAL/BLOCKED** and must not be marked DONE. P6/P7 and later phases remain blocked by the normal phase gate.
+All required live migration, sequential burst, rejection, rollover, persistence, and stable pooled-connection concurrency tests passed with timestamped RPC evidence. P5 is **DONE**. P4 remains `BLOCKED - pending budget approval for Supabase Pro plan`; the one-time override does not authorize P6/P7 or later phases while P4 remains blocked.
