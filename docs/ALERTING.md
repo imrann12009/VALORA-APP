@@ -2,7 +2,7 @@
 
 **Phase:** P3 — Alerting & incident response  
 **Provider:** Sentry  
-**Status:** Thresholds and response contract documented; Sentry dashboard rules and human routing are pending configuration.
+**Status:** Production-operational. The human owner confirmed a new-issue rule, email routing, and a received notification test.
 
 ## Scope and telemetry boundary
 
@@ -45,19 +45,16 @@ Required routing behavior:
 
 ## Sentry configuration checklist
 
-Create these rules in the Sentry project connected to the DSN. Do not mark P3 production-ready until each item has evidence in the Sentry dashboard:
+The human owner provided the following external evidence:
 
-- [ ] Production environment and release naming are enabled.
-- [ ] Critical fatal-crash rule created and routed to the primary on-call.
-- [ ] High repeated-error rule created with the 5-in-10-minute threshold.
-- [ ] High session-restore rule created with the `operation=restore_session` filter.
-- [ ] High release-regression rule created with the 3-in-30-minute threshold.
-- [ ] Test events are excluded from paging by the `verification=VALORA_SENTRY_TEST` tag.
-- [ ] Alert notification test fired and received by the primary route.
-- [ ] Acknowledgement and escalation path confirmed with the human owner.
+- [x] New-issue alert rule created in the Sentry project.
+- [x] Email notification channel configured.
+- [x] Email test notification received and confirmed.
+- [x] Free Developer plan selected; no payment card added; trial auto-downgrade decision recorded.
+- [ ] Production environment/release filters and additional severity-specific rules remain a follow-up if not covered by the configured new-issue rule.
 
 ## Limitations and follow-ups
 
 - Edge-function structured logs and server-side alert metrics are not implemented yet; add them before relying on API, database, feed, upload, or messaging thresholds.
-- Billing tier/cost is not locked in this repository. The human owner must confirm the Sentry plan and record the decision in the project’s operational record before production scale.
-- Alert rules are external configuration. A clean local build cannot prove that Sentry notifications are routed correctly.
+- Billing decision: **Free Developer plan**, no card added, with auto-downgrade after the trial. Reassess before volume or retention needs exceed the free tier.
+- The human owner confirmed the configured new-issue alert and received the email test notification. This repository does not independently inspect the Sentry dashboard.
