@@ -2,7 +2,9 @@
 
 **Phase:** P4 — DB backup & DR policy  
 **System of record:** Supabase Postgres and Supabase Storage  
-**Status:** Policy drafted; PITR configuration and first restore drill are pending evidence.
+**Status:** BLOCKED - pending budget approval for Supabase Pro plan.
+
+Offline policy work is documented below; P4 is not DONE until live PITR configuration and the first restore drill are evidenced.
 
 ## Recovery objectives
 
@@ -88,4 +90,18 @@ P4 cannot be marked DONE until all fields below are completed:
 
 ## Current status and blocker
 
-The repository contains the schema and migrations, but it does not prove the live Supabase plan, PITR setting, retention window, backup schedule, or restore result. P4 is therefore **BLOCKED** pending dashboard access and the first real restore drill. No production-ready or recovery-ready claim should be made before that evidence exists.
+**BLOCKED - pending budget approval for Supabase Pro plan.** The user has decided not to spend on Supabase Pro at this time, so PITR cannot be enabled and the first restore drill cannot be completed. P4 is intentionally **not DONE**, and P5 must not start until this blocker is cleared.
+
+### Resume TODO after budget approval
+
+> **Supabase Pro plan ($25/month) approve হলে PITR enable করে restore drill সম্পন্ন করতে হবে।**
+
+When the budget is approved:
+
+1. Upgrade the production Supabase project to Pro and record the approval/date in the operational record.
+2. Enable PITR and record the enabled timestamp and retention window.
+3. Create a separate restore target and select a recovery point.
+4. Run the first restore drill using the procedure above; record start/end times, measured RPO/RTO, schema/RLS checks, Storage sample restore, and application smoke-test results.
+5. Resolve every unchecked item in the first-restore-drill checklist, then re-verify P4 before considering P5.
+
+The documentation that can be completed without paid infrastructure is preserved: RPO/RTO targets, logical-backup and Storage retention rules, deletion constraints, restore procedure, transcoding-provider retention gate, and the complete first-drill evidence checklist. No production-ready or recovery-ready claim should be made before the live evidence exists.
